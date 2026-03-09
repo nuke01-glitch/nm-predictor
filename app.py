@@ -42,6 +42,29 @@ def get_glb_html(file_path):
     """
 
 st.set_page_config(layout="wide")
+# Inject custom CSS for a professional animated background
+page_bg_style = """
+<style>
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+}
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+/* Optional: Style the cards to be semi-transparent so they pop */
+[data-testid="stVerticalBlock"] {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+</style>
+"""
+st.markdown(page_bg_style, unsafe_allow_html=True)
 st.title("Nano-Material Predictor")
 
 col1, col2 = st.columns([1, 1])
