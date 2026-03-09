@@ -1,9 +1,26 @@
 import streamlit as st
+import base64
 import pandas as pd
+import numpy as np
+import re
 import os
 from catboost import CatBoostRegressor
 
-# 1. Load your models (Make sure these are in the same folder as app.py)
+# 1. ELEMENTAL DATA & FEATURE EXTRACTION (Matches your original logic)
+elements_data = {'H': [1.00, 2.20], 'Li': [6.94, 0.98], 'C': [12.01, 2.55], 'O': [16.00, 3.44], 
+                 'Zn': [65.38, 1.65], 'Ti': [47.87, 1.54], 'Si': [28.09, 1.90]} # Add remaining as needed
+
+def extract_features(formula):
+    parts = re.findall(r'([A-Z][a-z]*)(\d*)', str(formula))
+    w, ens = [], []
+    for el, c in parts:
+        c = int(c) if c else 1
+        if el in elements_data:
+            w.extend([elements_data[el][0]] * c)
+            ens.extend([elements_data[el][1]] * c)
+    if not ens: return 50.0, 2.0, 0.0, 0.0
+    return np.mean(w), np.mean(ens), np.max(ens) - np.min(ens), np.std(ens)
+
 @st.cache_resource
 def load_models():
     models = [CatBoostRegressor() for _ in range(4)]
@@ -13,6 +30,17 @@ def load_models():
 
 models = load_models()
 
+# 2. GLB HTML FUNCTION
+def get_glb_html(file_path):
+    with open(file_path, "rb") as f:
+        data = base64.b64encode(f.read()).decode("ascii")
+    return f"""
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.0.1/model-viewer.min.js"></script>
+    <model-viewer src="data:model/gltf+binary;base64,{data}" auto-rotate camera-controls 
+                  style="width: 100%; height: 500px; background-color: #0e1117;">
+    </model-viewer>
+    """
+
 st.set_page_config(layout="wide")
 st.title("Nano-Material Predictor")
 
@@ -20,23 +48,29 @@ col1, col2 = st.columns([1, 1])
 
 with col1:
     st.header("Input Parameters")
-    
-    # Capture inputs
-    formula = st.text_input("Chemical Formula", "ZnO")
-    crystal_structure = st.selectbox("Crystal Structure", ["Hexagonal", "Rutile", "Monoclinic", "Cubic"])
+    formula = st.text_input("Formula", "ZnO")
+    size_nm = st.number_input("Size (nm)", 30.0)
+    crystal_structure = st.selectbox("Structure", ["Hexagonal", "Rutile", "Monoclinic", "Cubic"])
     shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
-    size_nm = st.number_input("Size (nm)", min_value=0.1, value=30.0)
     material_class = st.text_input("Material Class", "metal oxide")
 
     if st.button("Get Prediction"):
-        # Put your existing extraction/prediction logic here
-        # (The same code you used in your FastAPI main.py)
-        # ... logic to calculate features ...
-        # ... predict using models ...
-        st.success("Prediction complete!")
-        st.write("Bandgap: [Result] eV") 
-        # Display all your model results here
+        w, avg_en, en_diff, en_std = extract_features(formula)
+        input_dict = {
+            'avg_w': w, 'avg_en': avg_en, 'en_diff': en_diff, 'en_std': en_std,
+            'crystal_structure': crystal_structure, 'material_class': material_class,
+            'size_nm': size_nm, 'inv_size': 1.0 / (size_nm + 1e-5), 'shape': shape
+        }
+        X = pd.DataFrame([input_dict])
+        preds = [model.predict(X)[0] for model in models]
+        
+        st.subheader("Results")
+        res1, res2 = st.columns(2)
+        res1.metric("Bandgap", f"{preds[0]:.2f} eV")
+        res1.metric("Density", f"{preds[1]:.2f} g/cm³")
+        res2.metric("Formation Energy", f"{preds[2]:.2f} eV/atom")
+        res2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
 
 with col2:
     st.subheader("Wurtzite Structure")
-    # Keep your 3D component here
+    st.components.v1.html(get_glb_html("assets/wurtzite_zno.glb"), height=500)
