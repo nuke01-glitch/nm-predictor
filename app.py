@@ -108,38 +108,37 @@ with tab1:
         
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-    # --- FINAL ALIGNED PREDICTION LOGIC ---
+   # --- FINAL ALIGNED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
         
-        # 1. Map data - Numerical first, then Categorical
+        # 1. Map data - Categorical first (Indices 0, 1, 2), then Numerical
         input_dict = {
+            'crystal_structure': str(structure), 
+            'material_class': str(m_class),
+            'shape': str(shape),
             'avg_w': float(w), 
             'avg_en': float(avg_en), 
             'en_diff': float(en_diff), 
             'en_std': float(en_std),
-            'crystal_structure': str(structure), 
-            'material_class': str(m_class),
-            'shape': str(shape),
             'size_nm': float(size_nm), 
             'inv_size': float(1.0 / (size_nm + 1e-5))
         }
         
         input_data = pd.DataFrame([input_dict])
 
-        # 2. THE PRECISE ORDER (Categorical starts at index 4)
-        # Order: 0:w, 1:avg_en, 2:en_diff, 3:en_std, 4:structure, 5:class, 6:shape...
-        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 
-                'crystal_structure', 'material_class', 'shape', 
+        # 2. THE PRECISE ORDER (Strings at indices 0, 1, 2)
+        cols = ['crystal_structure', 'material_class', 'shape', 
+                'avg_w', 'avg_en', 'en_diff', 'en_std', 
                 'size_nm', 'inv_size']
         
         input_data = input_data[cols]
 
-        # 3. Cast the categories to strings (Starting from Index 4)
+        # 3. Explicitly cast the first three columns to String
         cat_cols = ['crystal_structure', 'material_class', 'shape']
         for col in cat_cols:
             input_data[col] = input_data[col].astype(str)
         
-        # Fallback values to keep the graph alive
+        # Fallback values for UI
         preds = [1.0, 1.0, 1.0, 1.0]
 
         try:
