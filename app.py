@@ -111,29 +111,30 @@ with tab1:
    # --- FINAL ALIGNED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
         
-        # 1. Map data - Categorical first (Indices 0, 1, 2), then Numerical
+        # 1. Map data into a dictionary
         input_dict = {
-            'crystal_structure': str(structure), 
-            'material_class': str(m_class),
-            'shape': str(shape),
             'avg_w': float(w), 
             'avg_en': float(avg_en), 
             'en_diff': float(en_diff), 
             'en_std': float(en_std),
+            'crystal_structure': str(structure), 
+            'material_class': str(m_class),
+            'shape': str(shape),
             'size_nm': float(size_nm), 
             'inv_size': float(1.0 / (size_nm + 1e-5))
         }
         
         input_data = pd.DataFrame([input_dict])
 
-        # 2. THE PRECISE ORDER (Strings at indices 0, 1, 2)
-        cols = ['crystal_structure', 'material_class', 'shape', 
-                'avg_w', 'avg_en', 'en_diff', 'en_std', 
+        # 2. THE PRECISE ORDER (Categorical starts at index 4)
+        # This matches the error: 0:w, 1:avg_en, 2:en_diff, 3:en_std, 4:structure...
+        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 
+                'crystal_structure', 'material_class', 'shape', 
                 'size_nm', 'inv_size']
         
         input_data = input_data[cols]
 
-        # 3. Explicitly cast the first three columns to String
+        # 3. Cast the middle columns to Strings
         cat_cols = ['crystal_structure', 'material_class', 'shape']
         for col in cat_cols:
             input_data[col] = input_data[col].astype(str)
