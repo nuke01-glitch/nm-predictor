@@ -111,7 +111,7 @@ with tab1:
      # --- FINAL CORRECTED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
         
-        # 1. Map the data
+        # 1. Map the data into a dictionary
         input_dict = {
             'avg_w': float(w), 
             'avg_en': float(avg_en), 
@@ -124,24 +124,25 @@ with tab1:
             'shape': str(shape)
         }
         
-        input_data = pd.DataFrame([input_dict])
-
-        # 2. MATCH YOUR TRAINING ORDER (Numbers first, then Strings)
-        # Check: Did you train with (w, en, size) first? 
+        # 2. MATCH YOUR TRAINING ORDER
+        # IMPORTANT: If your training script had strings first, move them to the top of this list!
         cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size', 
                 'crystal_structure', 'material_class', 'shape']
+        
+        input_data = pd.DataFrame([input_dict])
         input_data = input_data[cols]
 
-        # 3. Explicitly cast types
+        # 3. Explicitly cast Categorical columns to String
+        # CatBoost's C++ engine requires strings for categorical features
         cat_cols = ['crystal_structure', 'material_class', 'shape']
         for col in cat_cols:
-            input_data[col] = input_data[col].astype(str) # CatBoost prefers str for cat_features
+            input_data[col] = input_data[col].astype(str)
         
-        # Initialize preds with 0s to avoid the NameError if prediction fails
-        preds = [0.0, 0.0, 0.0, 0.0]
+        # 4. Initialize preds with 1.0s to prevent the Graph NameError if prediction fails
+        preds = [1.0, 1.0, 1.0, 1.0]
 
         try:
-            # 4. Predict
+            # 5. Predict using your 4 models
             preds = [model.predict(input_data)[0] for model in models]
             
             st.markdown("---")
@@ -153,6 +154,7 @@ with tab1:
             r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
         except Exception as e:
             st.error(f"Prediction logic failed: {e}")
+            st.info("Check if your training feature order matches: avg_w, avg_en, en_diff, en_std, size, inv_size, structure, class, shape")
 
     with col_graph:
         st.header("📈 Scaling Curve")
