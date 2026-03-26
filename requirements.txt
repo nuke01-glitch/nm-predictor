@@ -2,3 +2,8 @@ streamlit
 pandas
 numpy
 catboost
+matplotlib
+seaborn
+stmol
+py3Dmol
+plotly
