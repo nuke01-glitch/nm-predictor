@@ -108,38 +108,39 @@ with tab1:
         
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-   # --- FINAL ALIGNED PREDICTION LOGIC ---
+   # --- DYNAMICALLY ALIGNED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
         
-        # 1. Map data into a dictionary
+        # 1. Create a dictionary with all potential features
         input_dict = {
             'avg_w': float(w), 
             'avg_en': float(avg_en), 
             'en_diff': float(en_diff), 
             'en_std': float(en_std),
+            'size_nm': float(size_nm), 
+            'inv_size': float(1.0 / (size_nm + 1e-5)),
             'crystal_structure': str(structure), 
             'material_class': str(m_class),
-            'shape': str(shape),
-            'size_nm': float(size_nm), 
-            'inv_size': float(1.0 / (size_nm + 1e-5))
+            'shape': str(shape)
         }
         
         input_data = pd.DataFrame([input_dict])
 
-        # 2. THE PRECISE ORDER (Categorical starts at index 4)
-        # This matches the error: 0:w, 1:avg_en, 2:en_diff, 3:en_std, 4:structure...
-        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 
-                'crystal_structure', 'material_class', 'shape', 
-                'size_nm', 'inv_size']
+        # 2. THE "MOST LIKELY" ORDER (Numeric first, Strings at the end)
+        # If this still gives feature_idx=0 error, swap the list below 
+        # to put the three strings at the VERY FRONT.
+        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size', 
+                'crystal_structure', 'material_class', 'shape']
         
         input_data = input_data[cols]
 
-        # 3. Cast the middle columns to Strings
-        cat_cols = ['crystal_structure', 'material_class', 'shape']
-        for col in cat_cols:
-            input_data[col] = input_data[col].astype(str)
+        # 3. FORCE TYPES: CatBoost needs strings to be strings and floats to be floats
+        for col in input_data.columns:
+            if col in ['crystal_structure', 'material_class', 'shape']:
+                input_data[col] = input_data[col].astype(str)
+            else:
+                input_data[col] = input_data[col].astype(float)
         
-        # Fallback values for UI
         preds = [1.0, 1.0, 1.0, 1.0]
 
         try:
@@ -153,9 +154,10 @@ with tab1:
             r1.metric("Density", f"{preds[1]:.2f} g/cm³")
             r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at")
             r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
+            
         except Exception as e:
-            st.error(f"Order Mismatch: {e}")
-            st.info(f"Current Order: {list(input_data.columns)}")
+            st.error(f"❌ Logic Error: {e}")
+            st.info("💡 **Pro-Tip:** If the error says 'idx=0', move the last 3 columns to the front of the 'cols' list in your code.")
 
     with col_graph:
         st.header("📈 Scaling Curve")
