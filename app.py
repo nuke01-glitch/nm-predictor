@@ -108,41 +108,41 @@ with tab1:
         
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-     # --- FINAL CORRECTED PREDICTION LOGIC ---
+     # --- REORDERED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
         
-        # 1. Map the data into a dictionary
+        # 1. Map data into a dictionary
         input_dict = {
+            'crystal_structure': str(structure), 
+            'material_class': str(m_class),
+            'shape': str(shape),
             'avg_w': float(w), 
             'avg_en': float(avg_en), 
             'en_diff': float(en_diff), 
             'en_std': float(en_std),
             'size_nm': float(size_nm), 
-            'inv_size': float(1.0 / (size_nm + 1e-5)),
-            'crystal_structure': str(structure), 
-            'material_class': str(m_class),
-            'shape': str(shape)
+            'inv_size': float(1.0 / (size_nm + 1e-5))
         }
         
-        # 2. MATCH YOUR TRAINING ORDER
-        # IMPORTANT: If your training script had strings first, move them to the top of this list!
-        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size', 
-                'crystal_structure', 'material_class', 'shape']
-        
         input_data = pd.DataFrame([input_dict])
+
+        # 2. MATCH THE CATEGORICAL-FIRST ORDER
+        # Based on the error, the model likely expects categories at the start (indices 0, 1, 2)
+        cols = ['crystal_structure', 'material_class', 'shape', 
+                'avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size']
+        
         input_data = input_data[cols]
 
-        # 3. Explicitly cast Categorical columns to String
-        # CatBoost's C++ engine requires strings for categorical features
+        # 3. Force the first three columns to be Strings
         cat_cols = ['crystal_structure', 'material_class', 'shape']
         for col in cat_cols:
             input_data[col] = input_data[col].astype(str)
         
-        # 4. Initialize preds with 1.0s to prevent the Graph NameError if prediction fails
+        # Fallback values for UI
         preds = [1.0, 1.0, 1.0, 1.0]
 
         try:
-            # 5. Predict using your 4 models
+            # 4. Predict
             preds = [model.predict(input_data)[0] for model in models]
             
             st.markdown("---")
@@ -153,9 +153,10 @@ with tab1:
             r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at")
             r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
         except Exception as e:
-            st.error(f"Prediction logic failed: {e}")
-            st.info("Check if your training feature order matches: avg_w, avg_en, en_diff, en_std, size, inv_size, structure, class, shape")
-
+            # This will help us find the right order if this one fails
+            st.error(f"Order Mismatch: {e}")
+            st.info(f"Current Order being sent to model: {list(input_data.columns)}")
+            
     with col_graph:
         st.header("📈 Scaling Curve")
         # Generate dynamic curve based on predicted bandgap & 1/L^2 physics
