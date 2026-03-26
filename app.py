@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
-import os  # Fixed: Added missing import
+import os
 import plotly.graph_objects as go
 from catboost import CatBoostRegressor
 from stmol import showmol
@@ -28,12 +28,7 @@ def extract_features(formula):
 
 @st.cache_resource
 def load_models():
-    model_files = [
-        "model_bandgap_eV.cbm",
-        "model_density_g_cm3.cbm",
-        "model_formation_energy_eV.cbm",
-        "model_specific_heat_J_gK.cbm"
-    ]
+    model_files = ["model_bandgap_eV.cbm", "model_density_g_cm3.cbm", "model_formation_energy_eV.cbm", "model_specific_heat_J_gK.cbm"]
     models_list = []
     for f_name in model_files:
         model = CatBoostRegressor()
@@ -41,8 +36,6 @@ def load_models():
         if os.path.exists(path):
             model.load_model(path)
             models_list.append(model)
-        else:
-            st.error(f"Missing model file: {path}")
     return models_list
 
 models = load_models()
@@ -61,27 +54,14 @@ def render_lattice(structure_type):
         for c in centers:
             view.addSphere({'center':{'x':c[0],'y':c[1],'z':0}, 'radius':0.7, 'color':'purple'})
             view.addSphere({'center':{'x':c[0],'y':c[1],'z':1.2}, 'radius':0.4, 'color':'yellow'})
-            view.addSphere({'center':{'x':c[0],'y':c[1],'z':-1.2}, 'radius':0.4, 'color':'yellow'})
     else:
         view.addSphere({'center':{'x':0,'y':0,'z':0}, 'radius':1.0, 'color':'red'})
-        for i in range(6):
-            view.addSphere({'center':{'x':np.cos(i)*2,'y':np.sin(i)*2,'z':0}, 'radius':0.5, 'color':'silver'})
-    view.zoomTo()
-    view.spin(True)
+    view.zoomTo(); view.spin(True)
     return showmol(view, height=400, width=500)
 
-# --- 3. PAGE CONFIG & STYLING ---
+# --- 3. UI CONFIG ---
 st.set_page_config(page_title="NanoPredict AI", layout="wide")
-st.markdown("""
-<style>
-    [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-        color: white;
-    }
-    .stMetric { background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1); }
-    .physics-card { background: rgba(0, 150, 255, 0.1); padding: 20px; border-radius: 15px; border-left: 5px solid #00d4ff; margin-top: 20px;}
-</style>
-""", unsafe_allow_html=True)
+st.markdown("<style>[data-testid='stAppViewContainer']{background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:white;}.stMetric{background:rgba(255,255,255,0.05);padding:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);}.physics-card{background:rgba(0,150,255,0.1);padding:20px;border-radius:15px;border-left:5px solid #00d4ff;margin-top:20px;}</style>", unsafe_allow_html=True)
 
 st.title("🔬 Nano-Material Predictive AI Lab")
 tab1, tab2, tab3 = st.tabs(["📊 Prediction Dashboard", "🧊 3D Structural Lab", "📜 Project Abstract"])
@@ -97,9 +77,11 @@ with tab1:
         with c2: m_class = st.selectbox("Material Class", ["2D semiconductor", "metal oxide", "perovskite", "carbon-based"])
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-        # --- PREDICTION LOGIC ---
+        # --- NUCLEAR PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
-        input_dict = {
+        
+        # We define EVERY column possible
+        full_data = pd.DataFrame([{
             'crystal_structure': str(structure), 
             'material_class': str(m_class),
             'shape': str(shape),
@@ -109,14 +91,19 @@ with tab1:
             'en_std': float(en_std),
             'size_nm': float(size_nm), 
             'inv_size': float(1.0 / (size_nm + 1e-5))
-        }
-        input_data = pd.DataFrame([input_dict])
-        
-        # Fixed: Moved strings to front to satisfy idx=0 categorical requirement
-        cols = ['crystal_structure', 'material_class', 'shape', 
-                'avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size']
-        input_data = input_data[cols]
+        }])
 
+        # --- THE AUTO-ALIGNER ---
+        # This checks the model itself to see what order it wants!
+        try:
+            expected_cols = models[0].feature_names_
+            input_data = full_data[expected_cols]
+        except:
+            # Fallback to the last known "Index 0 = Category" order
+            cols = ['crystal_structure', 'material_class', 'shape', 'avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size']
+            input_data = full_data[cols]
+
+        # Final Type Enforcement
         for col in input_data.columns:
             if col in ['crystal_structure', 'material_class', 'shape']:
                 input_data[col] = input_data[col].astype(str)
@@ -129,12 +116,11 @@ with tab1:
             st.markdown("---")
             st.subheader("🎯 Model Output")
             r1, r2 = st.columns(2)
-            r1.metric("Bandgap", f"{preds[0]:.2f} eV")
-            r1.metric("Density", f"{preds[1]:.2f} g/cm³")
-            r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at")
-            r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
+            r1.metric("Bandgap", f"{preds[0]:.2f} eV"); r1.metric("Density", f"{preds[1]:.2f} g/cm³")
+            r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at"); r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
         except Exception as e:
-            st.error(f"❌ Prediction Error: {e}")
+            st.error(f"FATAL ERROR: {e}")
+            st.write("Debug Column Order:", list(input_data.columns))
 
     with col_graph:
         st.header("📈 Scaling Curve")
@@ -146,20 +132,8 @@ with tab1:
         fig.add_trace(go.Scatter(x=[size_nm], y=[preds[0]], mode='markers', marker=dict(size=15, color='orange', symbol='diamond'), name="Prediction"))
         fig.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=0, b=0), xaxis_title="Size (nm)", yaxis_title="Bandgap (eV)")
         st.plotly_chart(fig, use_container_view=True)
-        insight = "✨ **Strong Quantum Confinement:** Bandgap widened." if size_nm < 15 else "⚡ **Intermediate Regime.**" if size_nm < 50 else "🏢 **Bulk Convergence.**"
-        st.markdown(f"<div class='physics-card'><h4>🧠 Physics Insight</h4>{insight}</div>", unsafe_allow_html=True)
-
-with tab2:
-    st.header("🧊 Atomic Visualization")
-    c_left, c_right = st.columns([1, 2])
-    with c_left:
-        st.write(f"**Material:** {formula}")
-        st.write(f"**Lattice:** {structure}")
-        st.info("The model represents unit cell symmetry.")
-    with c_right:
-        render_lattice(structure)
 
 with tab3:
     st.header("📜 Project Abstract")
-    st.info("B.Tech CIC - Data Science & Applications (IIT Madras)")
-    st.markdown(f"**Objective:** ML platform for predicting properties of nanomaterials. Accuracy: MAE of **0.03 eV**.")
+    st.info("Cluster Innovation Centre (CIC) ")
+    st.markdown("Developed by: **Sarthak Shree**")
