@@ -108,37 +108,38 @@ with tab1:
         
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-     # --- REORDERED PREDICTION LOGIC ---
+    # --- FINAL ALIGNED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
         
-        # 1. Map data into a dictionary
+        # 1. Map data - Numerical first, then Categorical
         input_dict = {
-            'crystal_structure': str(structure), 
-            'material_class': str(m_class),
-            'shape': str(shape),
             'avg_w': float(w), 
             'avg_en': float(avg_en), 
             'en_diff': float(en_diff), 
             'en_std': float(en_std),
+            'crystal_structure': str(structure), 
+            'material_class': str(m_class),
+            'shape': str(shape),
             'size_nm': float(size_nm), 
             'inv_size': float(1.0 / (size_nm + 1e-5))
         }
         
         input_data = pd.DataFrame([input_dict])
 
-        # 2. MATCH THE CATEGORICAL-FIRST ORDER
-        # Based on the error, the model likely expects categories at the start (indices 0, 1, 2)
-        cols = ['crystal_structure', 'material_class', 'shape', 
-                'avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size']
+        # 2. THE PRECISE ORDER (Categorical starts at index 4)
+        # Order: 0:w, 1:avg_en, 2:en_diff, 3:en_std, 4:structure, 5:class, 6:shape...
+        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 
+                'crystal_structure', 'material_class', 'shape', 
+                'size_nm', 'inv_size']
         
         input_data = input_data[cols]
 
-        # 3. Force the first three columns to be Strings
+        # 3. Cast the categories to strings (Starting from Index 4)
         cat_cols = ['crystal_structure', 'material_class', 'shape']
         for col in cat_cols:
             input_data[col] = input_data[col].astype(str)
         
-        # Fallback values for UI
+        # Fallback values to keep the graph alive
         preds = [1.0, 1.0, 1.0, 1.0]
 
         try:
@@ -153,10 +154,9 @@ with tab1:
             r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at")
             r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
         except Exception as e:
-            # This will help us find the right order if this one fails
             st.error(f"Order Mismatch: {e}")
-            st.info(f"Current Order being sent to model: {list(input_data.columns)}")
-            
+            st.info(f"Current Order: {list(input_data.columns)}")
+
     with col_graph:
         st.header("📈 Scaling Curve")
         # Generate dynamic curve based on predicted bandgap & 1/L^2 physics
