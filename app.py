@@ -77,11 +77,11 @@ with tab1:
         with c2: m_class = st.selectbox("Material Class", ["2D semiconductor", "metal oxide", "perovskite", "carbon-based"])
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-        # --- NUCLEAR PREDICTION LOGIC ---
+        # --- THE FINAL SYNCED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
         
-        # We define EVERY column possible
-        full_data = pd.DataFrame([{
+        # 1. Create the dictionary with all features
+        input_dict = {
             'crystal_structure': str(structure), 
             'material_class': str(m_class),
             'shape': str(shape),
@@ -91,36 +91,49 @@ with tab1:
             'en_std': float(en_std),
             'size_nm': float(size_nm), 
             'inv_size': float(1.0 / (size_nm + 1e-5))
-        }])
+        }
+        
+        input_data = pd.DataFrame([input_dict])
 
-        # --- THE AUTO-ALIGNER ---
-        # This checks the model itself to see what order it wants!
-        try:
-            expected_cols = models[0].feature_names_
-            input_data = full_data[expected_cols]
-        except:
-            # Fallback to the last known "Index 0 = Category" order
-            cols = ['crystal_structure', 'material_class', 'shape', 'avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size']
-            input_data = full_data[cols]
+        # 2. THE DEFINITIVE ORDER (Matches your 0-8 list exactly)
+        cols = [
+            'crystal_structure', # 0
+            'material_class',    # 1
+            'shape',             # 2
+            'avg_w',             # 3
+            'avg_en',            # 4
+            'en_diff',           # 5
+            'en_std',            # 6
+            'size_nm',           # 7
+            'inv_size'           # 8
+        ]
+        
+        input_data = input_data[cols]
 
-        # Final Type Enforcement
-        for col in input_data.columns:
-            if col in ['crystal_structure', 'material_class', 'shape']:
+        # 3. STRICT TYPE ENFORCEMENT
+        # CatBoost needs the first 3 as strings and the rest as floats
+        for i, col in enumerate(input_data.columns):
+            if i <= 2: # 0, 1, 2 are categorical
                 input_data[col] = input_data[col].astype(str)
-            else:
+            else:      # 3 through 8 are numerical
                 input_data[col] = input_data[col].astype(float)
         
-        preds = [1.0, 1.0, 1.0, 1.0]
+        preds = [1.0, 1.0, 1.0, 1.0] # Fallback for UI
+
         try:
+            # 4. Run the prediction through your 4 models
             preds = [model.predict(input_data)[0] for model in models]
+            
             st.markdown("---")
             st.subheader("🎯 Model Output")
             r1, r2 = st.columns(2)
-            r1.metric("Bandgap", f"{preds[0]:.2f} eV"); r1.metric("Density", f"{preds[1]:.2f} g/cm³")
-            r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at"); r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
+            r1.metric("Bandgap", f"{preds[0]:.2f} eV")
+            r1.metric("Density", f"{preds[1]:.2f} g/cm³")
+            r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at")
+            r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
+            
         except Exception as e:
-            st.error(f"FATAL ERROR: {e}")
-            st.write("Debug Column Order:", list(input_data.columns))
+            st.error(f"❌ Alignment Error: {e}")
 
     with col_graph:
         st.header("📈 Scaling Curve")
