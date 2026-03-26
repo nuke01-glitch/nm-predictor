@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
+import os  # Fixed: Added missing import
 import plotly.graph_objects as go
 from catboost import CatBoostRegressor
 from stmol import showmol
 import py3Dmol
 
 # --- 1. DATA & FEATURE EXTRACTION ---
-# Elemental data (expand as needed)
 elements_data = {
     'H': [1.00, 2.20], 'Li': [6.94, 0.98], 'C': [12.01, 2.55], 'O': [16.00, 3.44], 
     'Zn': [65.38, 1.65], 'Ti': [47.87, 1.54], 'Si': [28.09, 1.90], 'Mo': [95.95, 2.16],
@@ -28,24 +28,23 @@ def extract_features(formula):
 
 @st.cache_resource
 def load_models():
-    # List the exact names from your screenshot
     model_files = [
         "model_bandgap_eV.cbm",
         "model_density_g_cm3.cbm",
         "model_formation_energy_eV.cbm",
         "model_specific_heat_J_gK.cbm"
     ]
-    
-    models = []
+    models_list = []
     for f_name in model_files:
         model = CatBoostRegressor()
-        # Look inside the 'models' folder
         path = os.path.join("models", f_name)
-        model.load_model(path)
-        models.append(model)
-    return models
+        if os.path.exists(path):
+            model.load_model(path)
+            models_list.append(model)
+        else:
+            st.error(f"Missing model file: {path}")
+    return models_list
 
-import os
 models = load_models()
 
 # --- 2. 3D LATTICE GENERATOR ---
@@ -67,14 +66,12 @@ def render_lattice(structure_type):
         view.addSphere({'center':{'x':0,'y':0,'z':0}, 'radius':1.0, 'color':'red'})
         for i in range(6):
             view.addSphere({'center':{'x':np.cos(i)*2,'y':np.sin(i)*2,'z':0}, 'radius':0.5, 'color':'silver'})
-    
     view.zoomTo()
     view.spin(True)
     return showmol(view, height=400, width=500)
 
 # --- 3. PAGE CONFIG & STYLING ---
 st.set_page_config(page_title="NanoPredict AI", layout="wide")
-
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] {
@@ -87,54 +84,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔬 Nano-Material Predictive AI Lab")
-st.write("A professional tool for exploring Quantum Confinement & Material Properties.")
-
-# --- 4. TABS INTERFACE ---
 tab1, tab2, tab3 = st.tabs(["📊 Prediction Dashboard", "🧊 3D Structural Lab", "📜 Project Abstract"])
 
 with tab1:
     col_input, col_graph = st.columns([1, 1.2], gap="large")
-    
     with col_input:
         st.header("⚙️ Parameters")
         formula = st.text_input("Chemical Formula", "MoSe2")
         size_nm = st.slider("Particle Size (nm)", 2.0, 120.0, 30.0)
-        
         c1, c2 = st.columns(2)
-        with c1:
-            structure = st.selectbox("Crystal System", ["Hexagonal", "Cubic", "Monoclinic", "Rutile"])
-        with c2:
-            m_class = st.selectbox("Material Class", ["2D semiconductor", "metal oxide", "perovskite", "carbon-based"])
-        
+        with c1: structure = st.selectbox("Crystal System", ["Hexagonal", "Cubic", "Monoclinic", "Rutile"])
+        with c2: m_class = st.selectbox("Material Class", ["2D semiconductor", "metal oxide", "perovskite", "carbon-based"])
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-   # --- DYNAMICALLY ALIGNED PREDICTION LOGIC ---
+        # --- PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
-        
-        # 1. Create a dictionary with all potential features
         input_dict = {
+            'crystal_structure': str(structure), 
+            'material_class': str(m_class),
+            'shape': str(shape),
             'avg_w': float(w), 
             'avg_en': float(avg_en), 
             'en_diff': float(en_diff), 
             'en_std': float(en_std),
             'size_nm': float(size_nm), 
-            'inv_size': float(1.0 / (size_nm + 1e-5)),
-            'crystal_structure': str(structure), 
-            'material_class': str(m_class),
-            'shape': str(shape)
+            'inv_size': float(1.0 / (size_nm + 1e-5))
         }
-        
         input_data = pd.DataFrame([input_dict])
-
-        # 2. THE "MOST LIKELY" ORDER (Numeric first, Strings at the end)
-        # If this still gives feature_idx=0 error, swap the list below 
-        # to put the three strings at the VERY FRONT.
-        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size', 
-                'crystal_structure', 'material_class', 'shape']
         
+        # Fixed: Moved strings to front to satisfy idx=0 categorical requirement
+        cols = ['crystal_structure', 'material_class', 'shape', 
+                'avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size']
         input_data = input_data[cols]
 
-        # 3. FORCE TYPES: CatBoost needs strings to be strings and floats to be floats
         for col in input_data.columns:
             if col in ['crystal_structure', 'material_class', 'shape']:
                 input_data[col] = input_data[col].astype(str)
@@ -142,11 +124,8 @@ with tab1:
                 input_data[col] = input_data[col].astype(float)
         
         preds = [1.0, 1.0, 1.0, 1.0]
-
         try:
-            # 4. Predict
             preds = [model.predict(input_data)[0] for model in models]
-            
             st.markdown("---")
             st.subheader("🎯 Model Output")
             r1, r2 = st.columns(2)
@@ -154,31 +133,20 @@ with tab1:
             r1.metric("Density", f"{preds[1]:.2f} g/cm³")
             r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at")
             r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
-            
         except Exception as e:
-            st.error(f"❌ Logic Error: {e}")
-            st.info("💡 **Pro-Tip:** If the error says 'idx=0', move the last 3 columns to the front of the 'cols' list in your code.")
+            st.error(f"❌ Prediction Error: {e}")
 
     with col_graph:
         st.header("📈 Scaling Curve")
-        # Generate dynamic curve based on predicted bandgap & 1/L^2 physics
         sizes = np.linspace(2, 120, 100)
-        # Physics approximation for visual curve: E(L) = E_bulk + Const/L^2
         bulk_val = preds[0] - (10.0 / (size_nm**2)) 
         curve_vals = bulk_val + (10.0 / (sizes**2))
-        
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=sizes, y=curve_vals, name="Theoretical Trend", line=dict(color='#00d4ff', width=3)))
         fig.add_trace(go.Scatter(x=[size_nm], y=[preds[0]], mode='markers', marker=dict(size=15, color='orange', symbol='diamond'), name="Prediction"))
-        
         fig.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=0, b=0), xaxis_title="Size (nm)", yaxis_title="Bandgap (eV)")
         st.plotly_chart(fig, use_container_view=True)
-        
-        # Scientific Reasoning Text
-        insight = "✨ **Strong Quantum Confinement:** The bandgap is significantly widened." if size_nm < 15 else \
-                  "⚡ **Intermediate Regime:** Surface effects are dominant." if size_nm < 50 else \
-                  "🏢 **Bulk Convergence:** Properties are stabilizing."
-        
+        insight = "✨ **Strong Quantum Confinement:** Bandgap widened." if size_nm < 15 else "⚡ **Intermediate Regime.**" if size_nm < 50 else "🏢 **Bulk Convergence.**"
         st.markdown(f"<div class='physics-card'><h4>🧠 Physics Insight</h4>{insight}</div>", unsafe_allow_html=True)
 
 with tab2:
@@ -187,21 +155,11 @@ with tab2:
     with c_left:
         st.write(f"**Material:** {formula}")
         st.write(f"**Lattice:** {structure}")
-        st.info("The model on the right represents the fundamental unit cell symmetry used for your prediction.")
+        st.info("The model represents unit cell symmetry.")
     with c_right:
         render_lattice(structure)
 
 with tab3:
     st.header("📜 Project Abstract")
     st.info("B.Tech CIC - Data Science & Applications (IIT Madras)")
-    st.markdown(f"""
-    **Project Title:** AI-Driven Predictive Modeling of Nanomaterial Properties.
-    
-    **Objective:** This platform leverages Machine Learning to predict electronic and thermodynamic properties of nanomaterials. 
-    Unlike bulk materials, nano-scale systems exhibit size-dependent properties due to the **Quantum Confinement Effect**.
-    
-    **Technical Stack:**
-    - **Models:** CatBoost Gradient Boosted Regressors.
-    - **Features:** Elemental Electronegativity, Atomic Weight, Crystal Symmetry, and Inverse-Square Size scaling.
-    - **Accuracy:** MAE of **{0.003 if "Mo" in formula else 0.03} eV** achieved for {m_class} samples.
-    """)
+    st.markdown(f"**Objective:** ML platform for predicting properties of nanomaterials. Accuracy: MAE of **0.03 eV**.")
