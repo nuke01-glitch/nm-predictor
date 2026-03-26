@@ -108,24 +108,50 @@ with tab1:
         
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-        # PREDICTION LOGIC
+       # --- ENHANCED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
-        input_data = pd.DataFrame([{
-            'avg_w': w, 'avg_en': avg_en, 'en_diff': en_diff, 'en_std': en_std,
-            'crystal_structure': structure, 'material_class': m_class,
-            'size_nm': size_nm, 'inv_size': 1.0 / (size_nm), 'shape': shape
-        }])
         
-        preds = [model.predict(input_data)[0] for model in models]
+        # 1. Build the DataFrame with explicit types
+        input_dict = {
+            'avg_w': float(w), 
+            'avg_en': float(avg_en), 
+            'en_diff': float(en_diff), 
+            'en_std': float(en_std),
+            'crystal_structure': str(structure), 
+            'material_class': str(m_class),
+            'size_nm': float(size_nm), 
+            'inv_size': float(1.0 / (size_nm + 1e-5)), 
+            'shape': str(shape)
+        }
         
-        st.markdown("---")
-        st.subheader("🎯 Model Output")
-        r1, r2 = st.columns(2)
-        r1.metric("Bandgap", f"{preds[0]:.2f} eV")
-        r1.metric("Density", f"{preds[1]:.2f} g/cm³")
-        r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at")
-        r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
+        input_data = pd.DataFrame([input_dict])
 
+        # 2. CRITICAL: Match the exact order used during your model training
+        # Ensure these names match your training features exactly
+        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 'crystal_structure', 
+                'material_class', 'size_nm', 'inv_size', 'shape']
+        input_data = input_data[cols]
+
+        # 3. Convert string columns to Categorical for CatBoost
+        cat_cols = ['crystal_structure', 'material_class', 'shape']
+        for col in cat_cols:
+            input_data[col] = input_data[col].astype('category')
+        
+        # 4. Generate Predictions with error handling
+        try:
+            preds = [model.predict(input_data)[0] for model in models]
+            
+            st.markdown("---")
+            st.subheader("🎯 Model Output")
+            r1, r2 = st.columns(2)
+            r1.metric("Bandgap", f"{preds[0]:.2f} eV")
+            r1.metric("Density", f"{preds[1]:.2f} g/cm³")
+            r2.metric("Formation Energy", f"{preds[2]:.2f} eV/at")
+            r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
+        except Exception as e:
+            st.error(f"Prediction logic failed: {e}")
+            st.warning("Ensure the formula and parameters match the training data range.")
+            
     with col_graph:
         st.header("📈 Scaling Curve")
         # Generate dynamic curve based on predicted bandgap & 1/L^2 physics
