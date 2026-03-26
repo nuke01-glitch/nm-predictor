@@ -108,37 +108,40 @@ with tab1:
         
         shape = st.selectbox("Shape", ["Powder", "Ellipsoidal", "Sphere", "Rod"])
 
-       # --- ENHANCED PREDICTION LOGIC ---
+     # --- FINAL CORRECTED PREDICTION LOGIC ---
         w, avg_en, en_diff, en_std = extract_features(formula)
         
-        # 1. Build the DataFrame with explicit types
+        # 1. Map the data
         input_dict = {
             'avg_w': float(w), 
             'avg_en': float(avg_en), 
             'en_diff': float(en_diff), 
             'en_std': float(en_std),
+            'size_nm': float(size_nm), 
+            'inv_size': float(1.0 / (size_nm + 1e-5)),
             'crystal_structure': str(structure), 
             'material_class': str(m_class),
-            'size_nm': float(size_nm), 
-            'inv_size': float(1.0 / (size_nm + 1e-5)), 
             'shape': str(shape)
         }
         
         input_data = pd.DataFrame([input_dict])
 
-        # 2. CRITICAL: Match the exact order used during your model training
-        # Ensure these names match your training features exactly
-        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 'crystal_structure', 
-                'material_class', 'size_nm', 'inv_size', 'shape']
+        # 2. MATCH YOUR TRAINING ORDER (Numbers first, then Strings)
+        # Check: Did you train with (w, en, size) first? 
+        cols = ['avg_w', 'avg_en', 'en_diff', 'en_std', 'size_nm', 'inv_size', 
+                'crystal_structure', 'material_class', 'shape']
         input_data = input_data[cols]
 
-        # 3. Convert string columns to Categorical for CatBoost
+        # 3. Explicitly cast types
         cat_cols = ['crystal_structure', 'material_class', 'shape']
         for col in cat_cols:
-            input_data[col] = input_data[col].astype('category')
+            input_data[col] = input_data[col].astype(str) # CatBoost prefers str for cat_features
         
-        # 4. Generate Predictions with error handling
+        # Initialize preds with 0s to avoid the NameError if prediction fails
+        preds = [0.0, 0.0, 0.0, 0.0]
+
         try:
+            # 4. Predict
             preds = [model.predict(input_data)[0] for model in models]
             
             st.markdown("---")
@@ -150,8 +153,7 @@ with tab1:
             r2.metric("Specific Heat", f"{preds[3]:.4f} J/gK")
         except Exception as e:
             st.error(f"Prediction logic failed: {e}")
-            st.warning("Ensure the formula and parameters match the training data range.")
-            
+
     with col_graph:
         st.header("📈 Scaling Curve")
         # Generate dynamic curve based on predicted bandgap & 1/L^2 physics
