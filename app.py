@@ -88,6 +88,24 @@ def render_lattice(structure_type):
         # Draw tilted lines to show the strain
         view.addBox({'center':{'x':1.5,'y':1,'z':1}, 'dimensions': {'w':2,'h':2,'d':2}, 'color':'#00ff00', 'opacity':0.05})
 
+    elif structure_type == "Perovskite":
+        # Complex octahedral 'Cage' structure
+        # Central Atom (e.g., Titanium)
+        view.addSphere({'center':{'x':1,'y':1,'z':1}, 'radius':0.8, 'color':'#ff00ff'}) 
+        
+        # Corner Atoms (e.g., Barium)
+        for x in [0, 2]:
+            for y in [0, 2]:
+                for z in [0, 2]:
+                    view.addSphere({'center':{'x':x,'y':y,'z':z}, 'radius':0.6, 'color':'#00d4ff'})
+        
+        # Face-Centered Atoms (e.g., Oxygen) forming the octahedron
+        faces = [[1,1,0], [1,1,2], [1,0,1], [1,2,1], [0,1,1], [2,1,1]]
+        for f in faces:
+            view.addSphere({'center':{'x':f[0],'y':f[1],'z':f[2]}, 'radius':0.4, 'color':'#ff4b4b'})
+            # Add 'bonds' to show the cage
+            view.addLine({'start':{'x':1,'y':1,'z':1}, 'end':{'x':f[0],'y':f[1],'z':f[2]}, 'color':'white'})
+
     else:
         # Default Cluster/Amorphous for unknown types
         view.addSphere({'center':{'x':0,'y':0,'z':0}, 'radius':1.0, 'color':'red'})
@@ -130,7 +148,8 @@ with tab1:
         
         c1, c2 = st.columns(2)
         with c1:
-            structure = st.selectbox("Crystal System", ["Hexagonal", "Cubic", "Monoclinic", "Rutile"])
+            # Updated Selectbox
+            structure = st.selectbox("Crystal System", ["Hexagonal", "Cubic", "Monoclinic", "Rutile", "Perovskite (Visual Lab Only)"])
         with c2:
             m_class = st.selectbox("Material Class", ["semiconductor", "metal oxide", "perovskite", "carbon-based"])
         
