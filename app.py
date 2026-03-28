@@ -13,7 +13,6 @@ st.write("📂 Files detected in models folder:", os.listdir("models") if os.pat
 # --- 1. MODEL LOADING ---
 @st.cache_resource
 def load_models():
-    # List the exact names as they appear in your debug list
     model_files = [
         "model_bandgap_eV.cbm",
         "model_density_g_cm3.cbm",
@@ -22,26 +21,31 @@ def load_models():
     ]
     
     loaded_models = []
-    # Force the app to look in the current working directory + /models
-    base_path = os.path.dirname(__file__) 
     
+    # Try multiple path resolutions
+    possible_paths = [
+        os.path.join(os.getcwd(), "models"),
+        os.path.join(os.path.dirname(__file__), "models"),
+        "models"
+    ]
+
     for f_name in model_files:
-        # Construct path absolute to the app.py location
-        path = os.path.join(base_path, "models", f_name)
+        success = False
+        for folder in possible_paths:
+            full_path = os.path.join(folder, f_name)
+            if os.path.exists(full_path):
+                try:
+                    m = CatBoostRegressor()
+                    m.load_model(full_path)
+                    loaded_models.append(m)
+                    success = True
+                    break # Move to next file
+                except Exception as e:
+                    continue # Try the next path if this one fails
         
-        if os.path.exists(path):
-            model = CatBoostRegressor()
-            model.load_model(path)
-            loaded_models.append(model)
-        else:
-            # If it fails, try relative path directly
-            try:
-                model = CatBoostRegressor()
-                model.load_model(f"models/{f_name}")
-                loaded_models.append(model)
-            except:
-                st.error(f"⚠️ Still can't open: {f_name}")
-                
+        if not success:
+            st.error(f"❌ Failed to load {f_name}. Check if file is a valid .cbm model.")
+            
     return loaded_models
 
 # Initialize Models
