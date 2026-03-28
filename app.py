@@ -7,12 +7,12 @@ import plotly.graph_objects as go
 from catboost import CatBoostRegressor
 from stmol import showmol
 import py3Dmol
-import os
-st.write("📂 Files detected in models folder:", os.listdir("models") if os.path.exists("models") else "Folder not found")
+
 
 # --- 1. MODEL LOADING ---
 @st.cache_resource
 def load_models():
+    # These MUST match the filenames in your /models/ folder
     model_files = [
         "model_bandgap_eV.cbm",
         "model_density_g_cm3.cbm",
@@ -21,31 +21,15 @@ def load_models():
     ]
     
     loaded_models = []
-    
-    # Try multiple path resolutions
-    possible_paths = [
-        os.path.join(os.getcwd(), "models"),
-        os.path.join(os.path.dirname(__file__), "models"),
-        "models"
-    ]
-
     for f_name in model_files:
-        success = False
-        for folder in possible_paths:
-            full_path = os.path.join(folder, f_name)
-            if os.path.exists(full_path):
-                try:
-                    m = CatBoostRegressor()
-                    m.load_model(full_path)
-                    loaded_models.append(m)
-                    success = True
-                    break # Move to next file
-                except Exception as e:
-                    continue # Try the next path if this one fails
-        
-        if not success:
-            st.error(f"❌ Failed to load {f_name}. Check if file is a valid .cbm model.")
-            
+        model = CatBoostRegressor()
+        # Look inside the 'models' folder
+        path = os.path.join("models", f_name)
+        if os.path.exists(path):
+            model.load_model(path)
+            loaded_models.append(model)
+        else:
+            st.error(f"⚠️ Missing model file: {path}")
     return loaded_models
 
 # Initialize Models
