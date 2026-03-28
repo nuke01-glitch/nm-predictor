@@ -13,7 +13,7 @@ st.write("📂 Files detected in models folder:", os.listdir("models") if os.pat
 # --- 1. MODEL LOADING ---
 @st.cache_resource
 def load_models():
-    # These MUST match the filenames in your /models/ folder
+    # List the exact names as they appear in your debug list
     model_files = [
         "model_bandgap_eV.cbm",
         "model_density_g_cm3.cbm",
@@ -22,15 +22,26 @@ def load_models():
     ]
     
     loaded_models = []
+    # Force the app to look in the current working directory + /models
+    base_path = os.path.dirname(__file__) 
+    
     for f_name in model_files:
-        model = CatBoostRegressor()
-        # Look inside the 'models' folder
-        path = os.path.join("models", f_name)
+        # Construct path absolute to the app.py location
+        path = os.path.join(base_path, "models", f_name)
+        
         if os.path.exists(path):
+            model = CatBoostRegressor()
             model.load_model(path)
             loaded_models.append(model)
         else:
-            st.error(f"⚠️ Missing model file: {path}")
+            # If it fails, try relative path directly
+            try:
+                model = CatBoostRegressor()
+                model.load_model(f"models/{f_name}")
+                loaded_models.append(model)
+            except:
+                st.error(f"⚠️ Still can't open: {f_name}")
+                
     return loaded_models
 
 # Initialize Models
