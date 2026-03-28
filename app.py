@@ -53,19 +53,43 @@ def add_quantum_features(df):
 # --- 3. 3D LATTICE GENERATOR ---
 def render_lattice(structure_type):
     view = py3Dmol.view(width=400, height=400)
+    
     if structure_type == "Cubic":
+        # Standard FCC-style cube
         for x in [0, 2]:
             for y in [0, 2]:
                 for z in [0, 2]:
                     view.addSphere({'center':{'x':x,'y':y,'z':z}, 'radius':0.6, 'color':'#00d4ff'})
-        view.addBox({'center':{'x':1,'y':1,'z':1}, 'dimensions': {'w':2,'h':2,'d':2}, 'color':'white', 'opacity':0.2})
+        view.addBox({'center':{'x':1,'y':1,'z':1}, 'dimensions': {'w':2,'h':2,'d':2}, 'color':'white', 'opacity':0.1})
+    
     elif structure_type == "Hexagonal":
-        centers = [[0,0,0], [1,1.73,0], [-1,1.73,0], [2,0,0], [1,-1.73,0]]
+        # Layered Wurtzite-style symmetry
+        centers = [[0,0,0], [1,1.73,0], [-1,1.73,0], [2,0,0], [0,1.15,1.5], [1,2.88,1.5]]
         for c in centers:
-            view.addSphere({'center':{'x':c[0],'y':c[1],'z':0}, 'radius':0.7, 'color':'purple'})
-            view.addSphere({'center':{'x':c[0],'y':c[1],'z':1.2}, 'radius':0.4, 'color':'yellow'})
-            view.addSphere({'center':{'x':c[0],'y':c[1],'z':-1.2}, 'radius':0.4, 'color':'yellow'})
+            view.addSphere({'center':{'x':c[0],'y':c[1],'z':c[2] if len(c)>2 else 0}, 'radius':0.7, 'color':'purple'})
+            view.addSphere({'center':{'x':c[0],'y':c[1],'z':(c[2]+0.8) if len(c)>2 else 0.8}, 'radius':0.4, 'color':'yellow'})
+
+    elif structure_type == "Rutile":
+        # Tetragonal: Stretched cube (a=b != c)
+        for x in [0, 2]:
+            for y in [0, 2]:
+                for z in [0, 3.5]: # Notice the Z-axis is longer!
+                    view.addSphere({'center':{'x':x,'y':y,'z':z}, 'radius':0.5, 'color':'#ff4b4b'})
+        view.addBox({'center':{'x':1,'y':1,'z':1.75}, 'dimensions': {'w':2,'h':2,'d':3.5}, 'color':'white', 'opacity':0.1})
+
+    elif structure_type == "Monoclinic":
+        # Tilted Lattice: Angles are not 90 degrees
+        shift = 1.0
+        for z in [0, 2]:
+            offset = shift if z == 2 else 0
+            for x in [0, 2]:
+                for y in [0, 2]:
+                    view.addSphere({'center':{'x':x + offset,'y':y,'z':z}, 'radius':0.5, 'color':'#00ff00'})
+        # Draw tilted lines to show the strain
+        view.addBox({'center':{'x':1.5,'y':1,'z':1}, 'dimensions': {'w':2,'h':2,'d':2}, 'color':'#00ff00', 'opacity':0.05})
+
     else:
+        # Default Cluster/Amorphous for unknown types
         view.addSphere({'center':{'x':0,'y':0,'z':0}, 'radius':1.0, 'color':'red'})
         for i in range(6):
             view.addSphere({'center':{'x':np.cos(i)*2,'y':np.sin(i)*2,'z':0}, 'radius':0.5, 'color':'silver'})
