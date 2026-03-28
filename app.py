@@ -7,6 +7,8 @@ import plotly.graph_objects as go
 from catboost import CatBoostRegressor
 from stmol import showmol
 import py3Dmol
+import os
+st.write("📂 Files detected in models folder:", os.listdir("models") if os.path.exists("models") else "Folder not found")
 
 # --- 1. MODEL LOADING ---
 @st.cache_resource
