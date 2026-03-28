@@ -149,7 +149,7 @@ with tab1:
         c1, c2 = st.columns(2)
         with c1:
             # Updated Selectbox
-            structure = st.selectbox("Crystal System", ["Hexagonal", "Cubic", "Monoclinic", "Rutile", "Perovskite (Visual Lab Only)"])
+            structure = st.selectbox("Crystal System", ["Hexagonal", "Cubic", "Monoclinic", "Rutile", "Perovskite"])
         with c2:
             m_class = st.selectbox("Material Class", ["semiconductor", "metal oxide", "perovskite", "carbon-based"])
         
