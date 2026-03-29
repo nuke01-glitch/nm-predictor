@@ -95,92 +95,97 @@ def render_lattice(structure_type):
 # --- 5. PAGE CONFIG & STYLING ---
 st.set_page_config(page_title="NanoPredict AI", layout="wide")
 
-# 1. THE 3D CODE (Must stay at the top)
+import streamlit.components.v1 as components
+
+# Unified 3D Background + Transparency Fix
 three_js_bg = """
-<div id="canvas-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;"></div>
+<style>
+    #canvas-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1; /* Pushes it behind everything */
+        background: radial-gradient(circle at 50% 10%, #1e2a4a 0%, #0f0c29 50%, #050505 100%);
+    }
+</style>
+<div id="canvas-container"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 1500;
+    const particlesCount = 2000;
     const posArray = new Float32Array(particlesCount * 3);
     for(let i=0; i < particlesCount * 3; i++) {
         posArray[i] = (Math.random() - 0.5) * 10;
     }
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const material = new THREE.PointsMaterial({ size: 0.005, color: '#00d4ff', transparent: true, opacity: 0.8 });
+    const material = new THREE.PointsMaterial({ size: 0.007, color: '#00d4ff', transparent: true, opacity: 0.6 });
     const particlesMesh = new THREE.Points(particlesGeometry, material);
     scene.add(particlesMesh);
     camera.position.z = 3;
 
     let mouseX = 0; let mouseY = 0;
-    document.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+    window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX - window.innerWidth / 2) * 0.0005;
+        mouseY = (e.clientY - window.innerHeight / 2) * 0.0005;
+    });
 
     function animate() {
         requestAnimationFrame(animate);
         particlesMesh.rotation.y += 0.001;
-        particlesMesh.rotation.x += (mouseY * 0.00001);
-        particlesMesh.rotation.y += (mouseX * 0.00001);
+        particlesMesh.rotation.x += mouseY;
+        particlesMesh.rotation.y += mouseX;
         renderer.render(scene, camera);
     }
     animate();
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
 </script>
 """
 
-# 2. INJECT THE 3D BACKGROUND
-import streamlit.components.v1 as components
+# Inject the Background
 components.html(three_js_bg, height=0)
 
-# 3. THE CSS BLOCK (Updated for transparency)
+# Inject the CSS with "Force Transparency"
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
-
-    /* CRITICAL: Make main container transparent so Three.js shows through */
-    [data-testid="stAppViewContainer"] {
+    /* This forces the Streamlit app containers to be see-through */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .main {
         background: transparent !important;
-        color: #e0e0e0;
-        font-family: 'Inter', sans-serif;
-    }
-    
-    /* Add a dark radial overlay so the content is readable over particles */
-    .main {
-        background: radial-gradient(circle, rgba(15, 12, 41, 0.7) 0%, rgba(0, 0, 0, 0.9) 100%);
     }
 
-    /* Glassmorphism Containers */
-    div[data-testid="stMetric"], .physics-card, div.stTable, .stExpander {
-        background: rgba(255, 255, 255, 0.03) !important;
-        backdrop-filter: blur(15px);
+    /* Glassmorphism for the actual content cards so they stand out against particles */
+    div[data-testid="stMetric"], .physics-card, div.stTable, .stExpander, [data-testid="stForm"] {
+        background: rgba(15, 20, 40, 0.7) !important;
+        backdrop-filter: blur(12px);
         border: 1px solid rgba(0, 212, 255, 0.2) !important;
-        border-radius: 12px !important;
-    }
-
-    [data-testid="stMetricValue"] {
-        font-family: 'Fira Code', monospace;
-        color: #00d4ff !important;
+        border-radius: 15px !important;
     }
 
     .main-title {
-        font-size: 3rem !important;
+        font-size: 3.5rem !important;
+        font-weight: 800;
         background: linear-gradient(90deg, #00d4ff, #ffffff, #00d4ff);
         background-size: 200% auto;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         animation: shine 4s linear infinite;
     }
-
     @keyframes shine { to { background-position: 200% center; } }
-
-    /* Sidebar Styling */
+    
     [data-testid="stSidebar"] {
-        background-color: rgba(5, 5, 5, 0.95) !important;
-        border-right: 1px solid rgba(0, 212, 255, 0.2);
+        background-color: rgba(5, 5, 5, 0.9) !important;
+        backdrop-filter: blur(10px);
     }
 </style>
 """, unsafe_allow_html=True)
