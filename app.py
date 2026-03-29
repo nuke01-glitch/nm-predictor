@@ -7,6 +7,7 @@ from catboost import CatBoostRegressor
 from stmol import showmol
 import py3Dmol
 import streamlit.components.v1 as components
+import json
 
 # --- 1. CONSTANTS & BENCHMARKS ---
 BULK_BENCHMARKS = {
@@ -197,96 +198,139 @@ if app_mode == "Public Dashboard":
     st.write("First-Year B.Tech Project | Cluster Innovation Centre (CIC)")
 
     # --- INSERT THIS HERO SECTION HERE ---
-    # The Logic: Click button -> Particles Explode -> Particles Reassemble
-    burst_code = """
-    <div id="container" style="width: 100%; height: 450px; background: #000; border-radius: 20px; position: relative;">
-        <button id="transmute-btn" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-            padding: 12px 30px; background: linear-gradient(45deg, #ffaa00, #ff8800); border: none; 
-            border-radius: 30px; color: black; font-weight: bold; cursor: pointer; z-index: 10;
-            box-shadow: 0 0 20px rgba(255, 170, 0, 0.6); font-family: sans-serif;">
-            TRANSMUTE TO NANOPARTICLE
-        </button>
+# We'll generate the base coordinate logic inside the JS to keep Python clean.
+hero_component = """
+<div id="container" style="width: 100%; height: 550px; background: #000; border-radius: 20px; position: relative; overflow: hidden; border: 1px solid #333;">
+    <div id="ui-overlay" style="position: absolute; top: 20px; left: 20px; color: #00d4ff; font-family: 'Fira Code', monospace; pointer-events: none;">
+        <div id="shape-name" style="font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px;">STATUS: STABLE CLOUD</div>
     </div>
+    <button id="transmute-btn" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
+        padding: 15px 40px; background: transparent; border: 2px solid #00d4ff; 
+        border-radius: 5px; color: #00d4ff; font-weight: bold; cursor: pointer; z-index: 100;
+        transition: 0.3s; font-family: 'Fira Code', monospace;">
+        TRANSMUTE MATTER
+    </button>
+</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
 
-    <script>
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / 450, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, 450);
-        document.getElementById('container').appendChild(renderer.domElement);
+<script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / 550, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, 550);
+    document.getElementById('container').appendChild(renderer.domElement);
 
-        // 1. Create 1000 Particles
-        const count = 1000;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(count * 3);
-        const targetPositions = new Float32Array(count * 3);
+    const count = 6000; // Total particles
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    
+    // Initial State: Random Cloud
+    for(let i=0; i < count*3; i++) {
+        positions[i] = (Math.random() - 0.5) * 10;
+    }
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    const material = new THREE.PointsMaterial({ 
+        color: 0x00d4ff, 
+        size: 0.035, 
+        transparent: true, 
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending 
+    });
+    const points = new THREE.Points(geometry, material);
+    scene.add(points);
+    camera.position.z = 5;
 
-        for(let i=0; i < count; i++) {
-            // Initial Random Chaos
-            positions[i*3] = (Math.random() - 0.5) * 10;
-            positions[i*3+1] = (Math.random() - 0.5) * 10;
-            positions[i*3+2] = (Math.random() - 0.5) * 10;
-
-            // Target: Perfect Sphere (Nanoparticle)
+    // --- SHAPE GENERATORS ---
+    function getNanoparticle() {
+        const arr = new Float32Array(count * 3);
+        for(let i=0; i<count; i++) {
             const phi = Math.acos(-1 + (2 * i) / count);
             const theta = Math.sqrt(count * Math.PI) * phi;
-            targetPositions[i*3] = 1.5 * Math.cos(theta) * Math.sin(phi);
-            targetPositions[i*3+1] = 1.5 * Math.sin(theta) * Math.sin(phi);
-            targetPositions[i*3+2] = 1.5 * Math.cos(phi);
+            arr[i*3] = Math.cos(theta) * Math.sin(phi) * 1.5;
+            arr[i*3+1] = Math.sin(theta) * Math.sin(phi) * 1.5;
+            arr[i*3+2] = Math.cos(phi) * 1.5;
         }
+        return arr;
+    }
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        const material = new THREE.PointsMaterial({ color: 0x00d4ff, size: 0.05, transparent: true, opacity: 0.8 });
-        const points = new THREE.Points(geometry, material);
-        scene.add(points);
-
-        camera.position.z = 4;
-
-        // 2. The Animation Logic
-        let isAssembled = false;
-        document.getElementById('transmute-btn').addEventListener('click', () => {
-            const posAttr = points.geometry.attributes.position;
-            
-            for (let i = 0; i < count; i++) {
-                const i3 = i * 3;
-                if (!isAssembled) {
-                    // Explode Outward first, then assemble
-                    gsap.to(posAttr.array, {
-                        duration: 1.5,
-                        [i3]: targetPositions[i3],
-                        [i3+1]: targetPositions[i3+1],
-                        [i3+2]: targetPositions[i3+2],
-                        ease: "back.out(1.7)",
-                        onUpdate: () => posAttr.needsUpdate = true
-                    });
-                } else {
-                    // Scatter back to Chaos
-                    gsap.to(posAttr.array, {
-                        duration: 1,
-                        [i3]: (Math.random() - 0.5) * 8,
-                        [i3+1]: (Math.random() - 0.5) * 8,
-                        [i3+2]: (Math.random() - 0.5) * 8,
-                        ease: "power2.inOut",
-                        onUpdate: () => posAttr.needsUpdate = true
-                    });
-                }
+    function getAnimal(type) {
+        const arr = new Float32Array(count * 3);
+        for(let i=0; i<count; i++) {
+            let x, y, z;
+            if(type === 'dog') { // Boxy head, floppy ears
+                x = (Math.random()-0.5) * 2; y = (Math.random()-0.5) * 1.5; z = (Math.random()-0.5) * 0.5;
+            } else if(type === 'cat') { // Pointy ears (triangular top)
+                x = (Math.random()-0.5) * 1.5; y = (Math.random()-0.8) * 1.2; z = (Math.random()-0.5) * 0.3;
+            } else if(type === 'snake') { // Long sin wave
+                const t = (i / count) * 10;
+                x = Math.sin(t) * 0.5; y = t - 5; z = Math.cos(t) * 0.5;
+            } else if(type === 'hornbill') { // Massive beak (extended X)
+                x = (i < count/2) ? (Math.random()*2.5) : (Math.random()-0.5);
+                y = (Math.random()-0.5); z = (Math.random()-0.5) * 0.2;
+            } else if(type === 'rhino') { // Heavy base, horn spike
+                x = (Math.random()-0.5) * 2; y = (Math.random()-0.8); z = (Math.random()-0.5) * 1.5;
+                if(i > count*0.8) { x=0; y+=1; z=0; } // The horn
             }
-            isAssembled = !isAssembled;
-            document.getElementById('transmute-btn').innerText = isAssembled ? "RESET SYSTEM" : "TRANSMUTE TO NANOPARTICLE";
+            arr[i*3] = x; arr[i*3+1] = y; arr[i*3+2] = z;
+        }
+        return arr;
+    }
+
+    const shapes = [
+        { name: "Nanoparticle", data: getNanoparticle(), color: 0x00d4ff },
+        { name: "Canine (Dog)", data: getAnimal('dog'), color: 0xffaa00 },
+        { name: "Feline (Cat)", data: getAnimal('cat'), color: 0xff00ff },
+        { name: "Serpent (Snake)", data: getAnimal('snake'), color: 0x00ff88 },
+        { name: "Hornbill (Bird)", data: getAnimal('hornbill'), color: 0xffff00 },
+        { name: "Rhinoceros", data: getAnimal('rhino'), color: 0xff4400 }
+    ];
+
+    let currentIdx = 0;
+    const btn = document.getElementById('transmute-btn');
+    const label = document.getElementById('shape-name');
+
+    btn.addEventListener('click', () => {
+        const target = shapes[currentIdx];
+        label.innerText = "TRANSMUTING TO: " + target.name;
+        
+        // Morph Animation
+        gsap.to(points.geometry.attributes.position.array, {
+            duration: 2,
+            endArray: target.data,
+            ease: "power3.inOut",
+            onUpdate: () => points.geometry.attributes.position.needsUpdate = true
         });
 
-        function animate() {
-            requestAnimationFrame(animate);
-            points.rotation.y += 0.002;
-            renderer.render(scene, camera);
-        }
-        animate();
-    </script>
-    """
-    components.html(burst_code, height=460)
+        // Color Transition
+        gsap.to(material.color, {
+            duration: 1.5,
+            r: new THREE.Color(target.color).r,
+            g: new THREE.Color(target.color).g,
+            b: new THREE.Color(target.color).b
+        });
+
+        currentIdx = (currentIdx + 1) % shapes.length;
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        points.rotation.y += 0.005;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / 550;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, 550);
+    });
+</script>
+"""
+
+components.html(hero_component, height=560)
     # --- END OF HERO SECTION ---
     
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction Dashboard", "🧊 3D Structural Lab", "🧪 Virtual Experiment", "📜 Project Abstract"])
