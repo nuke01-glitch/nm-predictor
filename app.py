@@ -197,78 +197,96 @@ if app_mode == "Public Dashboard":
     st.write("First-Year B.Tech Project | Cluster Innovation Centre (CIC)")
 
     # --- INSERT THIS HERO SECTION HERE ---
-    # 1. NEW PHASE 1: The INTERACTIVE Atom from Image 3
-    atom_code = """
-    <div id="atom-container" style="width: 100%; height: 400px; background: #000; border-radius: 20px; overflow: hidden;"></div>
+    # The Logic: Click button -> Particles Explode -> Particles Reassemble
+    burst_code = """
+    <div id="container" style="width: 100%; height: 450px; background: #000; border-radius: 20px; position: relative;">
+        <button id="transmute-btn" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+            padding: 12px 30px; background: linear-gradient(45deg, #ffaa00, #ff8800); border: none; 
+            border-radius: 30px; color: black; font-weight: bold; cursor: pointer; z-index: 10;
+            box-shadow: 0 0 20px rgba(255, 170, 0, 0.6); font-family: sans-serif;">
+            TRANSMUTE TO NANOPARTICLE
+        </button>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
     <script>
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / 400, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / 450, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, 400);
-        document.getElementById('atom-container').appendChild(renderer.domElement);
+        renderer.setSize(window.innerWidth, 450);
+        document.getElementById('container').appendChild(renderer.domElement);
 
-        // 1. Core: The Golden Sphere
-        const coreGeometry = new THREE.SphereGeometry(0.3, 32, 32);
-        const coreMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700, emissive: 0xb8860b, shininess: 100 });
-        const core = new THREE.Mesh(coreGeometry, coreMaterial);
-        scene.add(core);
+        // 1. Create 1000 Particles
+        const count = 1000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const targetPositions = new Float32Array(count * 3);
 
-        // 2. Orbits & Electrons: The Particle Rings
-        const ringMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.8 });
-        const orbitals = [];
-        
-        const params = [ {r:1.5, n:50}, {r:2.0, n:65}, {r:2.8, n:80} ];
+        for(let i=0; i < count; i++) {
+            // Initial Random Chaos
+            positions[i*3] = (Math.random() - 0.5) * 10;
+            positions[i*3+1] = (Math.random() - 0.5) * 10;
+            positions[i*3+2] = (Math.random() - 0.5) * 10;
 
-        params.forEach(p => {
-            const points = [];
-            for (let i = 0; i < p.n; i++) {
-                const angle = (i / p.n) * Math.PI * 2;
-                points.push(new THREE.Vector3(Math.cos(angle) * p.r, Math.sin(angle) * p.r, 0));
+            // Target: Perfect Sphere (Nanoparticle)
+            const phi = Math.acos(-1 + (2 * i) / count);
+            const theta = Math.sqrt(count * Math.PI) * phi;
+            targetPositions[i*3] = 1.5 * Math.cos(theta) * Math.sin(phi);
+            targetPositions[i*3+1] = 1.5 * Math.sin(theta) * Math.sin(phi);
+            targetPositions[i*3+2] = 1.5 * Math.cos(phi);
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({ color: 0x00d4ff, size: 0.05, transparent: true, opacity: 0.8 });
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
+
+        camera.position.z = 4;
+
+        // 2. The Animation Logic
+        let isAssembled = false;
+        document.getElementById('transmute-btn').addEventListener('click', () => {
+            const posAttr = points.geometry.attributes.position;
+            
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3;
+                if (!isAssembled) {
+                    // Explode Outward first, then assemble
+                    gsap.to(posAttr.array, {
+                        duration: 1.5,
+                        [i3]: targetPositions[i3],
+                        [i3+1]: targetPositions[i3+1],
+                        [i3+2]: targetPositions[i3+2],
+                        ease: "back.out(1.7)",
+                        onUpdate: () => posAttr.needsUpdate = true
+                    });
+                } else {
+                    // Scatter back to Chaos
+                    gsap.to(posAttr.array, {
+                        duration: 1,
+                        [i3]: (Math.random() - 0.5) * 8,
+                        [i3+1]: (Math.random() - 0.5) * 8,
+                        [i3+2]: (Math.random() - 0.5) * 8,
+                        ease: "power2.inOut",
+                        onUpdate: () => posAttr.needsUpdate = true
+                    });
+                }
             }
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const ring = new THREE.Points(geometry, ringMaterial);
-            scene.add(ring);
-            orbitals.push(ring);
+            isAssembled = !isAssembled;
+            document.getElementById('transmute-btn').innerText = isAssembled ? "RESET SYSTEM" : "TRANSMUTE TO NANOPARTICLE";
         });
 
-        // Tilt the orbitals
-        orbitals[0].rotation.x = Math.PI / 4;
-        orbitals[1].rotation.x = -Math.PI / 6; orbitals[1].rotation.z = Math.PI / 2;
-        orbitals[2].rotation.z = Math.PI / 3; orbitals[2].rotation.y = Math.PI / 4;
-
-        // 3. Lighting
-        const ambientLight = new THREE.AmbientLight(0x404040); scene.add(ambientLight);
-        const pointLight = new THREE.PointLight(0xffffff, 1); pointLight.position.set(5, 5, 5); scene.add(pointLight);
-
-        camera.position.z = 4.5;
-
-        // 4. Manual Rotation Control
-        let isMouseDown = false; let startX; let startY;
-        document.getElementById('atom-container').addEventListener('mousedown', (e) => {
-            isMouseDown = True; startX = e.clientX; startY = e.clientY;
-        });
-        document.addEventListener('mouseup', () => isMouseDown = False);
-        document.addEventListener('mousemove', (e) => {
-            if (!isMouseDown) return;
-            const deltaX = e.clientX - startX; const deltaY = e.clientY - startY;
-            scene.rotation.y += deltaX * 0.01; scene.rotation.x += deltaY * 0.01;
-            startX = e.clientX; startY = e.clientY;
-        });
-
-        // 5. Automatic Animation
         function animate() {
             requestAnimationFrame(animate);
-            if (!isMouseDown) { // Auto-rotate only when not dragging
-                orbitals.forEach(o => o.rotation.z += 0.005);
-                scene.rotation.y += 0.001;
-            }
+            points.rotation.y += 0.002;
             renderer.render(scene, camera);
         }
         animate();
     </script>
     """
-    components.html(atom_code, height=410)
+    components.html(burst_code, height=460)
     # --- END OF HERO SECTION ---
     
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction Dashboard", "🧊 3D Structural Lab", "🧪 Virtual Experiment", "📜 Project Abstract"])
