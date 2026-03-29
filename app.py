@@ -197,47 +197,78 @@ if app_mode == "Public Dashboard":
     st.write("First-Year B.Tech Project | Cluster Innovation Centre (CIC)")
 
     # --- INSERT THIS HERO SECTION HERE ---
-    nano_sphere_code = """
-    <div id="container" style="width: 100%; height: 350px; background: transparent; border-radius: 20px; overflow: hidden;"></div>
+    # 1. NEW PHASE 1: The INTERACTIVE Atom from Image 3
+    atom_code = """
+    <div id="atom-container" style="width: 100%; height: 400px; background: #000; border-radius: 20px; overflow: hidden;"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / 350, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, 350);
-        document.getElementById('container').appendChild(renderer.domElement);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / 400, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, 400);
+        document.getElementById('atom-container').appendChild(renderer.domElement);
 
-        // Create a Particle-Based Nanoparticle
-        const geometry = new THREE.IcosahedronGeometry(1.5, 4); // Cleaner 'Atom' distribution
-        const material = new THREE.PointsMaterial({
-            color: 0x00d4ff,
-            size: 0.04,
-            transparent: true,
-            opacity: 0.9
+        // 1. Core: The Golden Sphere
+        const coreGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+        const coreMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700, emissive: 0xb8860b, shininess: 100 });
+        const core = new THREE.Mesh(coreGeometry, coreMaterial);
+        scene.add(core);
+
+        // 2. Orbits & Electrons: The Particle Rings
+        const ringMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.8 });
+        const orbitals = [];
+        
+        const params = [ {r:1.5, n:50}, {r:2.0, n:65}, {r:2.8, n:80} ];
+
+        params.forEach(p => {
+            const points = [];
+            for (let i = 0; i < p.n; i++) {
+                const angle = (i / p.n) * Math.PI * 2;
+                points.push(new THREE.Vector3(Math.cos(angle) * p.r, Math.sin(angle) * p.r, 0));
+            }
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const ring = new THREE.Points(geometry, ringMaterial);
+            scene.add(ring);
+            orbitals.push(ring);
         });
-        const sphere = new THREE.Points(geometry, material);
-        scene.add(sphere);
 
-        // Add a subtle glow/ambient light to the scene
-        camera.position.z = 3.5;
+        // Tilt the orbitals
+        orbitals[0].rotation.x = Math.PI / 4;
+        orbitals[1].rotation.x = -Math.PI / 6; orbitals[1].rotation.z = Math.PI / 2;
+        orbitals[2].rotation.z = Math.PI / 3; orbitals[2].rotation.y = Math.PI / 4;
 
+        // 3. Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040); scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 1); pointLight.position.set(5, 5, 5); scene.add(pointLight);
+
+        camera.position.z = 4.5;
+
+        // 4. Manual Rotation Control
+        let isMouseDown = false; let startX; let startY;
+        document.getElementById('atom-container').addEventListener('mousedown', (e) => {
+            isMouseDown = True; startX = e.clientX; startY = e.clientY;
+        });
+        document.addEventListener('mouseup', () => isMouseDown = False);
+        document.addEventListener('mousemove', (e) => {
+            if (!isMouseDown) return;
+            const deltaX = e.clientX - startX; const deltaY = e.clientY - startY;
+            scene.rotation.y += deltaX * 0.01; scene.rotation.x += deltaY * 0.01;
+            startX = e.clientX; startY = e.clientY;
+        });
+
+        // 5. Automatic Animation
         function animate() {
             requestAnimationFrame(animate);
-            sphere.rotation.y += 0.003; 
-            sphere.rotation.z += 0.001;
+            if (!isMouseDown) { // Auto-rotate only when not dragging
+                orbitals.forEach(o => o.rotation.z += 0.005);
+                scene.rotation.y += 0.001;
+            }
             renderer.render(scene, camera);
         }
         animate();
-        
-        // Handle window resizing
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / 350;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, 350);
-        });
     </script>
     """
-    components.html(nano_sphere_code, height=360)
+    components.html(atom_code, height=410)
     # --- END OF HERO SECTION ---
     
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction Dashboard", "🧊 3D Structural Lab", "🧪 Virtual Experiment", "📜 Project Abstract"])
