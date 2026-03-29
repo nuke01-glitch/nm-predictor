@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from catboost import CatBoostRegressor
 from stmol import showmol
 import py3Dmol
+import streamlit.components.v1 as components
 
 # --- 1. CONSTANTS & BENCHMARKS ---
 BULK_BENCHMARKS = {
@@ -94,38 +95,79 @@ def render_lattice(structure_type):
 # --- 5. PAGE CONFIG & STYLING ---
 st.set_page_config(page_title="NanoPredict AI", layout="wide")
 
+# 1. THE 3D CODE (Must stay at the top)
+three_js_bg = """
+<div id="canvas-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particlesCount = 1500;
+    const posArray = new Float32Array(particlesCount * 3);
+    for(let i=0; i < particlesCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 10;
+    }
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const material = new THREE.PointsMaterial({ size: 0.005, color: '#00d4ff', transparent: true, opacity: 0.8 });
+    const particlesMesh = new THREE.Points(particlesGeometry, material);
+    scene.add(particlesMesh);
+    camera.position.z = 3;
+
+    let mouseX = 0; let mouseY = 0;
+    document.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        particlesMesh.rotation.y += 0.001;
+        particlesMesh.rotation.x += (mouseY * 0.00001);
+        particlesMesh.rotation.y += (mouseX * 0.00001);
+        renderer.render(scene, camera);
+    }
+    animate();
+</script>
+"""
+
+# 2. INJECT THE 3D BACKGROUND
+import streamlit.components.v1 as components
+components.html(three_js_bg, height=0)
+
+# 3. THE CSS BLOCK (Updated for transparency)
 st.markdown("""
 <style>
-    /* 1. Base Terminal Aesthetic */
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
 
+    /* CRITICAL: Make main container transparent so Three.js shows through */
     [data-testid="stAppViewContainer"] {
-        background: radial-gradient(circle at 50% 10%, #1e2a4a 0%, #0f0c29 50%, #050505 100%);
+        background: transparent !important;
         color: #e0e0e0;
         font-family: 'Inter', sans-serif;
     }
-
-    /* 2. Glassmorphism Containers */
-    div[data-testid="stMetric"], .physics-card, div.stTable, .stExpander {
-        background: rgba(255, 255, 255, 0.02) !important;
-        backdrop-filter: blur(12px) saturate(180%);
-        border: 1px solid rgba(0, 212, 255, 0.15) !important;
-        border-radius: 12px !important;
-        padding: 20px !important;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+    
+    /* Add a dark radial overlay so the content is readable over particles */
+    .main {
+        background: radial-gradient(circle, rgba(15, 12, 41, 0.7) 0%, rgba(0, 0, 0, 0.9) 100%);
     }
 
-    /* 3. Metric Enhancements */
+    /* Glassmorphism Containers */
+    div[data-testid="stMetric"], .physics-card, div.stTable, .stExpander {
+        background: rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(0, 212, 255, 0.2) !important;
+        border-radius: 12px !important;
+    }
+
     [data-testid="stMetricValue"] {
         font-family: 'Fira Code', monospace;
         color: #00d4ff !important;
-        text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
     }
 
-    /* 4. Glowing Title Effect */
     .main-title {
         font-size: 3rem !important;
-        font-weight: 700;
         background: linear-gradient(90deg, #00d4ff, #ffffff, #00d4ff);
         background-size: 200% auto;
         -webkit-background-clip: text;
@@ -133,45 +175,12 @@ st.markdown("""
         animation: shine 4s linear infinite;
     }
 
-    @keyframes shine {
-        to { background-position: 200% center; }
-    }
+    @keyframes shine { to { background-position: 200% center; } }
 
-    /* 5. Modern Tabs Customization */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: rgba(0,0,0,0.2);
-        padding: 5px;
-        border-radius: 12px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px !important;
-        padding: 8px 20px !important;
-        transition: all 0.3s ease;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: rgba(0, 212, 255, 0.15) !important;
-        border: 1px solid #00d4ff !important;
-    }
-
-    /* 6. Sidebar 'Console' Look */
+    /* Sidebar Styling */
     [data-testid="stSidebar"] {
-        background-color: #050505 !important;
+        background-color: rgba(5, 5, 5, 0.95) !important;
         border-right: 1px solid rgba(0, 212, 255, 0.2);
-    }
-
-    /* 7. Button Glow */
-    .stButton>button {
-        background: linear-gradient(45deg, #00d4ff, #005f73);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
-        transition: 0.3s;
-    }
-    .stButton>button:hover {
-        box-shadow: 0 0 15px #00d4ff;
-        transform: scale(1.02);
     }
 </style>
 """, unsafe_allow_html=True)
