@@ -479,17 +479,18 @@ if app_mode == "Public Dashboard":
 
     # TAB 4: ABSTRACT
     with tab4:
-       st.header("📜 Project Abstract")
-    st.info("Research Mentor: Prof. Mahima Kaushik (CIC)")
-    st.markdown(f"""
-    **Project Title:** AI-Driven Predictive Modeling of Nanomaterial Properties.
-    
-    **Overview:** This project explores the intersection of Material Science and Machine Learning. By utilizing Gradient Boosted Trees (CatBoost), the platform predicts properties that are traditionally expensive to measure experimentally.
-    
-    **The Physics Edge:** Traditional ML models treat nanomaterials like bulk materials. This version (V5) incorporates **Quantum Confinement Descriptors** ($1/L^2$ and $1/L$), allowing the model to capture the non-linear electronic shifts inherent in nanostructures.
-    
-    **Academic Context:** Part of the foundational research for the IIT Madras BS (Data Science) and Cluster Innovation Centre (University of Delhi) curriculum.
-    """)
+        st.header("📜 Project Abstract")
+        # EVERYTHING BELOW MUST BE INDENTED (4 SPACES)
+        st.info("Research Mentor: Prof. Mahima Kaushik (CIC)")
+        st.markdown(f"""
+        **Project Title:** AI-Driven Predictive Modeling of Nanomaterial Properties.
+        
+        **Overview:** This project explores the intersection of Material Science and Machine Learning. By utilizing Gradient Boosted Trees (CatBoost), the platform predicts properties that are traditionally expensive to measure experimentally.
+        
+        **The Physics Edge:** Traditional ML models treat nanomaterials like bulk materials. This version (V5) incorporates **Quantum Confinement Descriptors** ($1/L^2$ and $1/L$), allowing the model to capture the non-linear electronic shifts inherent in nanostructures.
+        
+        **Academic Context:** Part of the foundational research for the IIT Madras BS (Data Science) and Cluster Innovation Centre (University of Delhi) curriculum.
+        """)
 
 else: # --- RESEARCH HUB MODE ---
     st.title("🔬 Advanced Research Hub")
