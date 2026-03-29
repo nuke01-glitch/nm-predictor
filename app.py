@@ -195,7 +195,8 @@ with st.sidebar:
 
 if app_mode == "Public Dashboard":
     st.markdown('<h1 class="main-title">Nano-Material Predictive AI Lab</h1>', unsafe_allow_html=True)
-    st.write("First-Year B.Tech Project | Cluster Innovation Centre (CIC)")
+    
+
 
         # --- INSERT THIS HERO SECTION HERE ---
     # We'll generate the base coordinate logic inside the JS to keep Python clean.
