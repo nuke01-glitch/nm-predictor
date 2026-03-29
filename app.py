@@ -257,27 +257,57 @@ if app_mode == "Public Dashboard":
         }
 
         function getAnimal(type) {
-            const arr = new Float32Array(count * 3);
-            for(let i=0; i<count; i++) {
-                let x, y, z;
-                if(type === 'dog') { // Boxy head, floppy ears
-                    x = (Math.random()-0.5) * 2; y = (Math.random()-0.5) * 1.5; z = (Math.random()-0.5) * 0.5;
-                } else if(type === 'cat') { // Pointy ears (triangular top)
-                    x = (Math.random()-0.5) * 1.5; y = (Math.random()-0.8) * 1.2; z = (Math.random()-0.5) * 0.3;
-                } else if(type === 'snake') { // Long sin wave
-                    const t = (i / count) * 10;
-                    x = Math.sin(t) * 0.5; y = t - 5; z = Math.cos(t) * 0.5;
-                } else if(type === 'hornbill') { // Massive beak (extended X)
-                    x = (i < count/2) ? (Math.random()*2.5) : (Math.random()-0.5);
-                    y = (Math.random()-0.5); z = (Math.random()-0.5) * 0.2;
-                } else if(type === 'rhino') { // Heavy base, horn spike
-                    x = (Math.random()-0.5) * 2; y = (Math.random()-0.8); z = (Math.random()-0.5) * 1.5;
-                    if(i > count*0.8) { x=0; y+=1; z=0; } // The horn
-                }
-                arr[i*3] = x; arr[i*3+1] = y; arr[i*3+2] = z;
+    const arr = new Float32Array(count * 3);
+    let i = 0;
+    while (i < count) {
+        // 1. Pick a random 3D coordinate in a workspace
+        let x = (Math.random() - 0.5) * 4;
+        let y = (Math.random() - 0.5) * 4;
+        let z = (Math.random() - 0.5) * 2;
+        let keep = false;
+
+        // 2. Define Animal "Zones"
+        if (type === 'dog') {
+            // Body + Head + Floppy Ears
+            if ((Math.abs(x) < 0.8 && Math.abs(y) < 0.5 && Math.abs(z) < 0.4) || // Body
+                (Math.abs(x-0.9) < 0.4 && Math.abs(y-0.4) < 0.4 && Math.abs(z) < 0.3)) { // Head
+                keep = true;
             }
-            return arr;
+        } else if (type === 'cat') {
+            // Slender body + Pointy Triangle Ears
+            if ((Math.abs(x) < 0.6 && Math.abs(y) < 0.4 && Math.abs(z) < 0.3) || // Body
+                (Math.abs(x-0.7) < 0.3 && Math.abs(y-0.4) < 0.3 && Math.abs(z) < 0.2)) { // Head
+                // Simple pointy ear check
+                if (y > 0.6 && Math.abs(x-0.7) < (0.8 - y)) keep = true; 
+                else keep = true;
+            }
+        } else if (type === 'snake') {
+            // A 3D Sine Wave "Tube"
+            let tubeX = x;
+            let targetY = Math.sin(x * 2) * 0.8;
+            let targetZ = Math.cos(x * 2) * 0.2;
+            if (Math.sqrt((y-targetY)**2 + (z-targetZ)**2) < 0.15) keep = true;
+        } else if (type === 'hornbill') {
+            // Small body + Massive curved Beak
+            if ((Math.abs(x) < 0.4 && Math.abs(y) < 0.4) || // Body
+                (x > 0.3 && x < 1.5 && y > 0 && y < 0.5 - (x-0.3)*0.3)) { // Beak
+                keep = true;
+            }
+        } else if (type === 'rhino') {
+            // Huge heavy block + a Spike (Horn)
+            if ((Math.abs(x) < 1.2 && Math.abs(y) < 0.7 && Math.abs(z) < 0.8) || // Massive body
+                (x > 1.0 && y > 0.5 && Math.abs(z) < 0.1 && y < 1.5 - (x-1.0)*2)) { // Horn
+                keep = true;
+            }
         }
+
+        if (keep) {
+            arr[i*3] = x; arr[i*3+1] = y; arr[i*3+2] = z;
+            i++;
+        }
+    }
+    return arr;
+}
 
         const shapes = [
             { name: "Nanoparticle", data: getNanoparticle(), color: 0x00d4ff },
