@@ -90,23 +90,109 @@ def render_lattice(structure_type):
     view.zoomTo(); view.spin(True)
     return showmol(view, height=400, width=500)
 
+
 # --- 5. PAGE CONFIG & STYLING ---
 st.set_page_config(page_title="NanoPredict AI", layout="wide")
 
 st.markdown("""
 <style>
-    [data-testid="stAppViewContainer"] { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: white; }
-    .physics-card { background: rgba(0, 150, 255, 0.1); padding: 20px; border-radius: 15px; border-left: 5px solid #00d4ff; margin-top: 20px;}
-    .stMetric { background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1); }
+    /* 1. Base Terminal Aesthetic */
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
+
+    [data-testid="stAppViewContainer"] {
+        background: radial-gradient(circle at 50% 10%, #1e2a4a 0%, #0f0c29 50%, #050505 100%);
+        color: #e0e0e0;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* 2. Glassmorphism Containers */
+    div[data-testid="stMetric"], .physics-card, div.stTable, .stExpander {
+        background: rgba(255, 255, 255, 0.02) !important;
+        backdrop-filter: blur(12px) saturate(180%);
+        border: 1px solid rgba(0, 212, 255, 0.15) !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+    }
+
+    /* 3. Metric Enhancements */
+    [data-testid="stMetricValue"] {
+        font-family: 'Fira Code', monospace;
+        color: #00d4ff !important;
+        text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    }
+
+    /* 4. Glowing Title Effect */
+    .main-title {
+        font-size: 3rem !important;
+        font-weight: 700;
+        background: linear-gradient(90deg, #00d4ff, #ffffff, #00d4ff);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shine 4s linear infinite;
+    }
+
+    @keyframes shine {
+        to { background-position: 200% center; }
+    }
+
+    /* 5. Modern Tabs Customization */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: rgba(0,0,0,0.2);
+        padding: 5px;
+        border-radius: 12px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px !important;
+        padding: 8px 20px !important;
+        transition: all 0.3s ease;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: rgba(0, 212, 255, 0.15) !important;
+        border: 1px solid #00d4ff !important;
+    }
+
+    /* 6. Sidebar 'Console' Look */
+    [data-testid="stSidebar"] {
+        background-color: #050505 !important;
+        border-right: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    /* 7. Button Glow */
+    .stButton>button {
+        background: linear-gradient(45deg, #00d4ff, #005f73);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        box-shadow: 0 0 15px #00d4ff;
+        transform: scale(1.02);
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("🔬 Navigation")
-app_mode = st.sidebar.radio("Go to", ["Public Dashboard", "Advanced Research Hub"])
+with st.sidebar:
+    st.markdown("<h1 style='color:#00d4ff;'>🔬 NanoPredict v5</h1>", unsafe_allow_html=True)
+    app_mode = st.radio("System Mode", ["Public Dashboard", "Advanced Research Hub"])
+    
+    st.markdown("---")
+    st.markdown("### 🛰️ System Status")
+    st.markdown("""
+    <div style="font-size: 0.8rem; line-height: 1.6;">
+        <span style="color: #00ff00;">●</span> AI Core: Operational<br>
+        <span style="color: #00d4ff;">●</span> Physics Engine: Loaded<br>
+        <span style="color: #ffaa00;">●</span> Latency: 12ms
+    </div>
+    """, unsafe_allow_html=True)
 
 if app_mode == "Public Dashboard":
-    st.title("🔬 Nano-Material Predictive AI Lab")
+    st.markdown('<h1 class="main-title">Nano-Material Predictive AI Lab</h1>', unsafe_allow_html=True)
     st.write("First-Year B.Tech Project | Cluster Innovation Centre (CIC)")
     
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction Dashboard", "🧊 3D Structural Lab", "🧪 Virtual Experiment", "📜 Project Abstract"])
