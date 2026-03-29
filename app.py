@@ -195,6 +195,50 @@ with st.sidebar:
 if app_mode == "Public Dashboard":
     st.markdown('<h1 class="main-title">Nano-Material Predictive AI Lab</h1>', unsafe_allow_html=True)
     st.write("First-Year B.Tech Project | Cluster Innovation Centre (CIC)")
+
+    # --- INSERT THIS HERO SECTION HERE ---
+    nano_sphere_code = """
+    <div id="container" style="width: 100%; height: 350px; background: transparent; border-radius: 20px; overflow: hidden;"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / 350, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, 350);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Create a Particle-Based Nanoparticle
+        const geometry = new THREE.IcosahedronGeometry(1.5, 4); // Cleaner 'Atom' distribution
+        const material = new THREE.PointsMaterial({
+            color: 0x00d4ff,
+            size: 0.04,
+            transparent: true,
+            opacity: 0.9
+        });
+        const sphere = new THREE.Points(geometry, material);
+        scene.add(sphere);
+
+        // Add a subtle glow/ambient light to the scene
+        camera.position.z = 3.5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            sphere.rotation.y += 0.003; 
+            sphere.rotation.z += 0.001;
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / 350;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, 350);
+        });
+    </script>
+    """
+    components.html(nano_sphere_code, height=360)
+    # --- END OF HERO SECTION ---
     
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction Dashboard", "🧊 3D Structural Lab", "🧪 Virtual Experiment", "📜 Project Abstract"])
 
